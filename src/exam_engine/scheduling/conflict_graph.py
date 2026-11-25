@@ -50,6 +50,7 @@ def build_conflict_graph(registry: ProblemRegistryProtocol) -> ConflictGraph:
     same_day: dict[str, set[str]] = {c: set() for c in sorted(registry.courses)}
 
     for student_id in sorted(registry.enrolments_by_student):
+        student = registry.students[student_id]
         enrols = registry.enrolments_by_student[student_id]
         n = len(enrols)
         for i in range(n):
@@ -60,6 +61,12 @@ def build_conflict_graph(registry: ProblemRegistryProtocol) -> ConflictGraph:
                     continue
                 same_sess.setdefault(u, set()).add(v)
                 same_sess.setdefault(v, set()).add(u)
+                consent_ok = student.backlog_consent and (
+                    enrols[i].is_backlog or enrols[j].is_backlog
+                )
+                if not consent_ok:
+                    same_day.setdefault(u, set()).add(v)
+                    same_day.setdefault(v, set()).add(u)
 
     return ConflictGraph(
         same_session_forbidden={c: frozenset(same_sess[c]) for c in sorted(same_sess)},
