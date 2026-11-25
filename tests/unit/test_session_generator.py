@@ -18,7 +18,7 @@ SRC_DIR = Path(__file__).resolve().parents[2] / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from exam_engine.scheduling.session_generator import (  # noqa: E402
+from exam_engine.scheduling.session_generator import (
     AN_END_MINUTES,
     AN_START_MINUTES,
     FN_END_MINUTES,
