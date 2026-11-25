@@ -1,0 +1,28 @@
+stateDiagram-v2
+    [*] --> CommandReceived
+    CommandReceived --> CommandValidating : Inspect Payload & Target IDs
+
+    CommandValidating --> RejectedInvalidCommand : Unknown ID / Unscheduled Target
+    RejectedInvalidCommand --> AuditLogged : Prior ScheduleState Preserved
+
+    CommandValidating --> SnapshotCreated : Clone Candidate State & Hash All Sessions (ALG-19)
+
+    SnapshotCreated --> ClashAndCapacityPrecheck : Evaluate BR-01 / BR-04 / BR-09..BR-11
+    ClashAndCapacityPrecheck --> RolledBackClash : Student Clash Detected (REJECTED_CLASH + 2 Courses)
+    ClashAndCapacityPrecheck --> LocalSessionRecomputation : Prechecks Pass -> Identify Affected Sessions
+
+    LocalSessionRecomputation --> RolledBackInfeasible : No Later Session / Capacity / Accessible Seat Exhausted
+    LocalSessionRecomputation --> CrossSessionAudit : Local Halls, Seats & Delta Staff Recomputed
+
+    CrossSessionAudit --> RolledBackAuditFailure : ALG-18 Global Hard Rule Failed
+    CrossSessionAudit --> BlastRadiusHashCheck : ALG-18 Hard Rules Valid
+
+    BlastRadiusHashCheck --> AbortedBugDetected : Unaffected Session Hash Mismatch
+    BlastRadiusHashCheck --> CommittedNewVersion : All Unaffected Session Digests Identical
+
+    RolledBackClash --> AuditLogged : Discard Candidate, Keep State v
+    RolledBackInfeasible --> AuditLogged : Discard Candidate, Keep State v
+    RolledBackAuditFailure --> AuditLogged : Discard Candidate, Keep State v
+    CommittedNewVersion --> AuditLogged : Promote Candidate to State v+1 (APPLIED)
+
+    AuditLogged --> [*]

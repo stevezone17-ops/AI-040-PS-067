@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    actor Officer as Exam Officer (commands.json)
+    participant Orch as Orchestrator
+    participant StateMgr as StateSnapshotManager
+    participant LateEng as LateRegistrationEngine (ALG-17)
+    participant SeatEng as SeatAndAccessEngine (ALG-11..12)
+    participant InvEng as InvigilationEngine (ALG-13..14)
+    participant Val as IndependentValidator (ALG-18)
+
+    Officer->>Orch: ADD_LATE_REGISTRANT (student, late_enrolments)
+    Orch->>StateMgr: begin_candidate(state_v) + hash_all_sessions()
+    Orch->>LateEng: register_late_student(cmd, candidate_state)
+    LateEng->>LateEng: Check BR-01 clashes across all student courses (existing + late)
+    alt Same-session or unconsented same-day clash detected
+        LateEng->>StateMgr: rollback(state_v, REJECTED_CLASH, conflicting_courses=[C1, C2])
+        StateMgr-->>Orch: state_v (unchanged) + ChangeResult(REJECTED_CLASH)
+    else Zero clashes
+        loop For each enrolled course c (atomic across basket)
+            LateEng->>LateEng: Verify 90% session headroom & select eligible hall H* with most free seats
+            alt Session 90% cap or accessible/hall seat exhausted
+                LateEng->>StateMgr: rollback(state_v, REJECTED_CAPACITY / REJECTED_ACCESSIBILITY_CAPACITY)
+            else Eligible hall H* selected
+                LateEng->>SeatEng: Re-seat ONLY course c column-set in H* (SN Row-1 + alphabetical)
+                LateEng->>InvEng: Apply minimal delta invigilation if ceil(n/30) rose or +20m triggered
+            end
+        end
+        LateEng->>Val: validate_schedule_independently(candidate_state)
+        LateEng->>StateMgr: verify unaffected session & hall hashes -> commit(APPLIED)
+        StateMgr-->>Orch: state_{v+1} + ChangeResult(APPLIED)
+    end

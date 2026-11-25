@@ -1,0 +1,47 @@
+flowchart LR
+    subgraph Actors["University Examination Stakeholders"]
+        ExamCell["Examination Section Officer"]
+        DeptCoord["Academic Department Coordinators"]
+        AuditPanel["Capstone Evaluators / Auditors"]
+    end
+
+    subgraph Inputs["Command-File Inputs (Provisional CSV / JSON)"]
+        MasterCSV["Master Registries (courses, students, enrolments, halls, invigilators)"]
+        WinJSON["Examination Calendar (exam_window.json)"]
+        CmdJSON["Incremental Disruptions (commands.json)"]
+    end
+
+    subgraph Engine["AI-040-PS-067 Backend Engine (Python 3.10+ CLI, In-Memory)"]
+        CoreSys["University Exam Timetabling and Hall Allocation Engine"]
+    end
+
+    subgraph Outputs["Deterministic Output Artefacts (CSV / JSON / TXT)"]
+        TT["timetable.csv"]
+        HP["hall_plan.csv"]
+        SA["seat_assignments.csv & seat_maps.txt"]
+        IR["invigilation_roster.csv"]
+        VR["violations.json & change_results.json"]
+        SS["schedule_state.json"]
+    end
+
+    DeptCoord -->|"Enrolments, Credits, Invigilator Limits"| MasterCSV
+    ExamCell -->|"Window Dates, Holidays, Change Commands"| WinJSON
+    ExamCell -->|"Postponements, Closures, Late Regs"| CmdJSON
+
+    MasterCSV --> CoreSys
+    WinJSON --> CoreSys
+    CmdJSON --> CoreSys
+
+    CoreSys --> TT
+    CoreSys --> HP
+    CoreSys --> SA
+    CoreSys --> IR
+    CoreSys --> VR
+    CoreSys --> SS
+
+    TT --> ExamCell
+    HP --> ExamCell
+    SA --> ExamCell
+    IR --> ExamCell
+    VR --> AuditPanel
+    SS --> AuditPanel

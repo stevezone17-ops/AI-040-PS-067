@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+    actor Officer as Exam Officer (commands.json)
+    participant Orch as Orchestrator
+    participant StateMgr as StateSnapshotManager
+    participant ClosEng as HallUnavailabilityEngine (ALG-16)
+    participant HallEng as HallAndSeatEngine (ALG-08..12)
+    participant InvEng as InvigilationEngine (ALG-13..14)
+    participant Val as IndependentValidator (ALG-18)
+
+    Officer->>Orch: MARK_HALL_UNAVAILABLE (hall_id, target_sessions)
+    Orch->>StateMgr: begin_candidate(state_v) + hash_all_sessions()
+    Orch->>ClosEng: recover_hall_unavailability(cmd, candidate_state)
+    ClosEng->>ClosEng: Add (S_orig, hall_id) to closed_hall_sessions
+    alt Hall was unoccupied in S_orig
+        ClosEng->>StateMgr: commit(candidate_state, affected=[])
+    else Hall was occupied in S_orig
+        ClosEng->>HallEng: Try repacking S_orig into next largest free compatible hall(s)
+        alt Same-session free capacity sufficient
+            ClosEng->>HallEng: Reallocate S_orig halls & seats
+            ClosEng->>InvEng: Recompute S_orig invigilation
+            ClosEng->>Val: validate(candidate_state)
+            ClosEng->>StateMgr: verify hashes outside {S_orig} & commit(APPLIED)
+        else Insufficient capacity in S_orig
+            loop Until S_orig feasible or infeasible failure
+                ClosEng->>ClosEng: Pick smallest course (enrolment, credits, code) in S_orig
+                ClosEng->>ClosEng: Find next free later session S_dest (> S_orig)
+            end
+            alt Displaced course has no feasible S_dest
+                ClosEng->>StateMgr: rollback(state_v, REJECTED_HALL_CLOSURE_INFEASIBLE)
+            else S_dest found & flagged COURSE_DISPLACED_BY_HALL_CLOSURE
+                ClosEng->>HallEng: Recompute halls & seats ONLY for {S_orig, S_dest}
+                ClosEng->>InvEng: Recompute invigilation ONLY for {S_orig, S_dest}
+                ClosEng->>Val: validate(candidate_state)
+                ClosEng->>StateMgr: verify hashes outside {S_orig, S_dest} & commit(APPLIED)
+            end
+        end
+    end

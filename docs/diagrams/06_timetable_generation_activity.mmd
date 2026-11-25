@@ -1,0 +1,27 @@
+flowchart TD
+    Start(["Start Initial Timetable Synthesis"]) --> GenSess["ALG-02: Generate Active Sessions & Flag Final 3 Exam Days"]
+    GenSess --> BuildCG["ALG-03: Build Student Conflict Graph (Same-Session & Same-Day Maps)"]
+    BuildCG --> SortC["ALG-05: Sort Courses by (-Enrolment, -Credits, CourseCode)"]
+    SortC --> LoopC{"More Courses in Sorted Queue?"}
+
+    LoopC -- Yes --> PopC["Select Next Course c"]
+    PopC --> Pass1["Pass 1: Scan Chronological Sessions 0..M-1"]
+    Pass1 --> Check1{"Hard Rules (BR-01, BR-04, BR-12) + Hall Packable (ALG-08) + Core Gap (BR-02)?"}
+    Check1 -- "Yes (Earliest Match)" --> Commit1["Assign c to Session (used_gap_soft_fallback = False)"]
+    Commit1 --> LoopC
+
+    Check1 -- "No Session Matches Pass 1" --> Pass2["Pass 2: Scan Chronological Sessions 0..M-1 (Relax BR-02 Gap Only)"]
+    Pass2 --> Check2{"All Hard Rules + Hall Packable (ALG-08)?"}
+    Check2 -- "Yes (Earliest Match)" --> Commit2["Assign c to Session + Log CORE_GAP_SOFT_VIOLATION"]
+    Commit2 --> LoopC
+
+    Check2 -- "No Session Matches Pass 2" --> SmallCheck{"Is 1 <= Enrolment(c) < 10?"}
+    SmallCheck -- Yes --> DeferSmall["Defer c to Small-Course Co-Scheduling Queue"]
+    SmallCheck -- No --> MarkUnsched["Mark c UNSCHEDULED_COURSE & Log Blocking Constraint"]
+    DeferSmall --> LoopC
+    MarkUnsched --> LoopC
+
+    LoopC -- No --> HasDef{"Deferred Small Queue Non-Empty?"}
+    HasDef -- Yes --> CoSched["ALG-10: Pair Compatible Different-Dept Small Courses in Earliest Feasible Session; Mark Unpairable as UNSCHEDULED"]
+    HasDef -- No --> Finish(["Timetable Synthesis Complete"])
+    CoSched --> Finish

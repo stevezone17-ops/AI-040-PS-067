@@ -1,0 +1,27 @@
+stateDiagram-v2
+    [*] --> Uninitialised
+    Uninitialised --> ParsingAndValidation : CLI Invoked
+
+    ParsingAndValidation --> AbortedInvalidInput : Schema / FK / Range Error (CN-01..CN-06)
+    AbortedInvalidInput --> [*] : Exit Code 2
+
+    ParsingAndValidation --> RegistryReady : Valid ProblemRegistry & Sessions Built
+    RegistryReady --> TimetableSynthesis : Build Conflict Graph & Order Courses (ALG-03..ALG-06)
+
+    TimetableSynthesis --> SpatialHallAndSeatPacking : Courses Placed (Including Soft-Gap Fallbacks & Unscheduled Flags)
+    SpatialHallAndSeatPacking --> InvigilationStaffing : Halls, Alternate Columns & Ground-Floor Row-1 Assigned (ALG-09..ALG-12)
+    InvigilationStaffing --> InitialAudit : Hall Staff & Building Chiefs Assigned or Marked UNSTAFFED (ALG-13..ALG-14)
+
+    InitialAudit --> AbortedIntegrityFailure : Hard Invariant Broken in ALG-18
+    AbortedIntegrityFailure --> [*] : Exit Code 3
+
+    InitialAudit --> InitialValidSchedule : Hard Rules Verified (Clean, Soft-Violation, Partial-Unscheduled, or Partial-Unstaffed)
+
+    InitialValidSchedule --> IncrementalCommandLoop : Change Commands Present (FR-05)
+    InitialValidSchedule --> ReportGeneration : No Change Commands
+
+    IncrementalCommandLoop --> IncrementalCommandLoop : Command APPLIED (State v+1) or REJECTED (Rolled Back to v)
+    IncrementalCommandLoop --> ReportGeneration : All Commands Processed
+
+    ReportGeneration --> Completed : Emit Deterministic CSV / JSON / TXT Artefacts (ALG-20)
+    Completed --> [*] : Exit Code 0

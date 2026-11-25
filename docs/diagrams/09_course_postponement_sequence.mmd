@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    actor Officer as Exam Officer (commands.json)
+    participant Orch as Orchestrator
+    participant StateMgr as StateSnapshotManager
+    participant PostEng as PostponementEngine (ALG-15)
+    participant HallEng as HallAndSeatEngine (ALG-08..12)
+    participant InvEng as InvigilationEngine (ALG-13..14)
+    participant Val as IndependentValidator (ALG-18)
+
+    Officer->>Orch: POSTPONE_COURSE (course_code, min_target_date)
+    Orch->>StateMgr: begin_candidate(state_v) + hash_all_sessions()
+    StateMgr-->>Orch: candidate_state, pre_digests
+    Orch->>PostEng: execute_postpone(cmd, candidate_state)
+    PostEng->>HallEng: remove course from S_orig & check S_orig still packable
+    alt S_orig orphaned a < 10 small partner
+        PostEng->>StateMgr: rollback(state_v, REJECTED_NO_FEASIBLE_SESSION)
+        StateMgr-->>Orch: state_v (unchanged) + ChangeResult(REJECTED)
+    else S_orig remains valid
+        PostEng->>PostEng: Scan sessions > S_orig (Pass 1 Hard+Gap, Pass 2 Hard+SoftGap)
+        alt Zero feasible later sessions exist
+            PostEng->>StateMgr: rollback(state_v, REJECTED_NO_FEASIBLE_SESSION)
+            StateMgr-->>Orch: state_v (unchanged) + ChangeResult(REJECTED)
+        else Earliest feasible S_dest selected
+            PostEng->>HallEng: recompute halls & seats ONLY for {S_orig, S_dest}
+            PostEng->>InvEng: rebuild WorkloadTracker from fixed sessions; staff {S_orig, S_dest}
+            PostEng->>Val: validate_schedule_independently(candidate_state)
+            Val-->>PostEng: hard_valid == True
+            PostEng->>StateMgr: assert pre_digests[s] == post_digests[s] for all s not in {S_orig, S_dest}
+            StateMgr-->>Orch: state_{v+1} + ChangeResult(APPLIED, affected=[S_orig, S_dest])
+        end
+    end

@@ -1,0 +1,25 @@
+flowchart TD
+    Start(["Start Session Invigilation Staffing (ALG-13 & ALG-14)"]) --> SortOcc["Sort Occupied Halls by hall_id Ascending"]
+    SortOcc --> HallLoop{"Next Occupied Hall h?"}
+
+    HallLoop -- Yes --> CalcReq["Compute Required Slots: req = max(1, ceil(occupied_seats / 30))"]
+    CalcReq --> SlotLoop{"Next Slot 1..req for Hall h?"}
+    SlotLoop -- Yes --> FilterPool["Filter Invigilators: Not Used in Session, Dept Not in Hall Courses (EC-04), Available Date, No Overlap with Effective Window (EC-05), Daily < 2, ISO Weekly < max_weekly"]
+    FilterPool --> PoolEmpty{"Eligible Pool Empty?"}
+    PoolEmpty -- No --> SortPool["Sort Pool by (assigned_so_far, department, invigilator_id)"]
+    SortPool --> PickTop["Assign Top Candidate & Increment Workload Tracker"]
+    PoolEmpty -- Yes --> MarkUnstaffedH["Mark Hall Slot UNSTAFFED & Record HALL_UNSTAFFED Violation"]
+    PickTop --> SlotLoop
+    MarkUnstaffedH --> SlotLoop
+    SlotLoop -- No --> HallLoop
+
+    HallLoop -- No --> GroupBldg["Derive Active Buildings (Buildings with >= 1 Occupied Hall, Sorted by building_code)"]
+    GroupBldg --> BldgLoop{"Next Active Building b?"}
+    BldgLoop -- Yes --> FilterChief["Filter Chief Pool: Not Used in Session, Available Date, Covers Max Building Window, Daily < 2, ISO Weekly < max_weekly"]
+    FilterChief --> ChiefEmpty{"Chief Pool Empty?"}
+    ChiefEmpty -- No --> PickChief["Sort by (assigned_so_far, department, invigilator_id) -> Assign BUILDING_CHIEF & Increment Workload"]
+    ChiefEmpty -- Yes --> MarkUnstaffedB["Mark Building Chief UNSTAFFED & Record BUILDING_CHIEF_UNSTAFFED Violation"]
+    PickChief --> BldgLoop
+    MarkUnstaffedB --> BldgLoop
+
+    BldgLoop -- No --> Done(["Return InvigilationAssignments & Shortage Violations"])

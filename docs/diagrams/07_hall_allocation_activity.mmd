@@ -1,0 +1,21 @@
+flowchart TD
+    Start(["Start Session Hall & Seat Packing (ALG-08..ALG-12)"]) --> FilterH["Filter Open Halls (Exclude Closed Halls in Session)"]
+    FilterH --> Cap90{"Total Session Students <= floor(0.90 * Sum Available Hall Capacity)?"}
+    Cap90 -- No --> FailCap["Return INFEASIBLE (SESSION_90_PERCENT_CAP_EXCEEDED)"]
+
+    Cap90 -- Yes --> SortH["Sort Available Halls by (-capacity, hall_id); Isolate Ground-Floor (floor == 0)"]
+    SortH --> ResSN["ALG-12: Reserve Ground-Floor Row-1 Alternate-Column Slots for Courses with Special-Needs Students"]
+    ResSN --> SNOk{"Enough Ground-Floor Row-1 Slots?"}
+    SNOk -- No --> FailSN["Return INFEASIBLE (INSUFFICIENT_ACCESSIBLE_SEATS)"]
+
+    SNOk -- Yes --> PackLarge["ALG-09: Allocate Large Courses (>= 10 Students) Largest-Hall-First (Matching Duration 2h vs 3h, Max 2 Courses/Hall)"]
+    PackLarge --> LargeOk{"All >= 10 Course Students Allocated?"}
+    LargeOk -- No --> FailHall["Return INFEASIBLE (HALL_CAPACITY_EXHAUSTED)"]
+
+    LargeOk -- Yes --> PackSmall["ALG-10: Merge Small Courses (1..9 Students) into Compatible Different-Dept Equal-Duration Halls (or Pair Two Small Courses)"]
+    PackSmall --> SmallOk{"Every < 10 Course Merged with Different-Dept Partner?"}
+    SmallOk -- No --> FailMerge["Return INFEASIBLE (SMALL_COURSE_NO_MERGE_PARTNER)"]
+
+    SmallOk -- Yes --> GenSeats["ALG-11: Generate Row-Major Seats (Slot A Odd Cols, Slot B Even Cols; SN Row-1 Alphabetical, Regular Alphabetical)"]
+    GenSeats --> ExtTime["ALG-12: Add +20 Minutes to Hall Effective End Time Where has_special_needs == True"]
+    ExtTime --> Success(["Return FEASIBLE + HallAllocations + SeatAssignments"])

@@ -1,0 +1,62 @@
+flowchart TB
+    subgraph EntryLayer["Layer 1: CLI & Application Orchestration"]
+        CLI["13. CLI Adapter (cli.py)"]
+        Orch["14. Application Orchestrator (orchestrator.py)"]
+    end
+
+    subgraph AdapterLayer["Layer 2: File I/O & Reporting Adapters"]
+        Parser["02. Input Parsing & Validation (io/)"]
+        Reporter["12. Deterministic Report Generator (reporting/)"]
+    end
+
+    subgraph ControlLayer["Layer 3: Transactional Change & Independent Audit"]
+        ChangeMgr["09. Change Management Engine (changes/)"]
+        StateMgr["11. Schedule State & Snapshot Manager (state_manager.py)"]
+        Validator["10. Independent Schedule Validator (validation/)"]
+    end
+
+    subgraph EngineLayer["Layer 4: Constructive Domain Engines"]
+        Sched["03. Timetable Scheduling Engine (scheduling/scheduler.py)"]
+        Conflict["04. Conflict Graph & Core Gap Engine (conflict_graph.py, gap_validator.py)"]
+        HallAlloc["05. Hall Allocation & Merge Engine (allocation/hall_allocator.py)"]
+        SeatEng["06. Alternate-Column Seat Engine (allocation/seat_assigner.py)"]
+        AccessPol["07. Accessibility & Extra-Time Policy (allocation/accessibility.py)"]
+        InvigEng["08. Invigilation & Chief Engine (invigilation/)"]
+    end
+
+    subgraph DomainLayer["Layer 5: Pure Domain Kernel"]
+        Domain["01. Immutable Entities, Enums & ScheduleState (domain/)"]
+    end
+
+    CLI --> Orch
+    Orch --> Parser
+    Orch --> Sched
+    Orch --> HallAlloc
+    Orch --> InvigEng
+    Orch --> ChangeMgr
+    Orch --> Validator
+    Orch --> StateMgr
+    Orch --> Reporter
+
+    ChangeMgr --> StateMgr
+    ChangeMgr --> Sched
+    ChangeMgr --> HallAlloc
+    ChangeMgr --> InvigEng
+    ChangeMgr --> Validator
+
+    Sched --> Conflict
+    Sched --> HallAlloc
+    HallAlloc --> SeatEng
+    HallAlloc --> AccessPol
+    SeatEng --> AccessPol
+
+    Parser --> Domain
+    Reporter --> Domain
+    Validator --> Domain
+    StateMgr --> Domain
+    Sched --> Domain
+    Conflict --> Domain
+    HallAlloc --> Domain
+    SeatEng --> Domain
+    AccessPol --> Domain
+    InvigEng --> Domain

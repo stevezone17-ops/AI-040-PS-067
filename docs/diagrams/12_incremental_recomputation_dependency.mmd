@@ -1,0 +1,50 @@
+flowchart TD
+    subgraph Triggers["Incremental Change Triggers (FR-05)"]
+        T1["POSTPONE_COURSE (BR-09)"]
+        T2["MARK_HALL_UNAVAILABLE (BR-10)"]
+        T3["ADD_LATE_REGISTRANT (BR-11)"]
+    end
+
+    subgraph SessionLocal["Session-Scoped Mutable State (Mutated ONLY in Affected Sessions)"]
+        EA["ExamAssignment (course -> session_id)"]
+        SC["Session Course Membership (session_courses[S])"]
+        HA["Hall Allocations (hall_allocations[S])"]
+        SA["Individual Seat Assignments (seat_assignments[S, H])"]
+        EW["Hall Effective End Time (base + 20m if SN)"]
+        AB["Active Buildings in Session S"]
+        HI["Hall Invigilators (ceil(n / 30))"]
+        BC["Building Chief Invigilators (1 / active bldg)"]
+    end
+
+    subgraph GlobalReadOnly["Cross-Session Read-Only State & Audit Outputs"]
+        FSD["Fixed Student Daily Exams (BR-01)"]
+        FCG["Fixed Cohort Core Exam Dates (BR-02)"]
+        FWL["Fixed Invigilator Daily & ISO-Weekly Duties (BR-07, BR-08)"]
+        DIG["Unaffected Session SHA-256 Digests (Must Match 100%)"]
+        VIO["Violations & ChangeResult Audit Log"]
+    end
+
+    T1 --> EA
+    T2 --> HA
+    T2 -->|"If capacity insufficient -> Displace smallest course"| EA
+    T3 --> SA
+
+    EA --> SC
+    SC --> HA
+    HA --> SA
+    SA --> EW
+    SA --> HI
+    HA --> AB
+    EW --> HI
+    AB --> BC
+    EW --> BC
+
+    FSD -.->|"Read-Only Validation"| EA
+    FCG -.->|"Read-Only Gap Check"| EA
+    FWL -.->|"Read-Only Baseline Load"| HI
+    FWL -.->|"Read-Only Baseline Load"| BC
+
+    EA --> VIO
+    HI --> VIO
+    BC --> VIO
+    DIG -.->|"Blocks Commit on Drift"| VIO

@@ -1,0 +1,169 @@
+classDiagram
+    class Student {
+        +str register_number
+        +str programme
+        +int semester
+        +bool special_needs
+        +bool backlog_consent
+        +bool is_late_registrant
+    }
+
+    class Course {
+        +str course_code
+        +str title
+        +str department
+        +int semester
+        +int credits
+        +int duration_hours
+        +bool is_supplementary
+        +is_core() bool
+    }
+
+    class Enrolment {
+        +str register_number
+        +str course_code
+        +bool is_backlog
+    }
+
+    class Building {
+        +str building_code
+        +tuple~str~ hall_ids
+    }
+
+    class Hall {
+        +str hall_id
+        +str building_code
+        +int floor
+        +int rows
+        +int columns
+        +int capacity
+        +is_ground_floor() bool
+    }
+
+    class Invigilator {
+        +str invigilator_id
+        +str name
+        +str department
+        +int max_weekly_sessions
+        +frozenset~date~ unavailable_dates
+        +tuple external_duties
+    }
+
+    class ExamWindow {
+        +date start_date
+        +date end_date
+        +frozenset~date~ holidays
+        +frozenset closed_slots
+    }
+
+    class ExamSession {
+        +str session_id
+        +int session_index
+        +date exam_date
+        +SessionSlot slot
+        +TimeInterval base_window
+        +bool is_supplementary_window_date
+        +tuple iso_week_key
+    }
+
+    class ExamAssignment {
+        +str course_code
+        +str session_id
+        +bool used_gap_soft_fallback
+        +str displaced_by_change_id
+    }
+
+    class HallAllocation {
+        +str session_id
+        +str hall_id
+        +str building_code
+        +int duration_hours
+        +str slot_a_course
+        +str slot_b_course
+        +dict course_student_counts
+        +bool has_special_needs
+        +TimeInterval effective_window
+        +int required_invigilators
+    }
+
+    class SeatAssignment {
+        +str session_id
+        +str hall_id
+        +int row
+        +int column
+        +int seat_number
+        +str seat_label
+        +str course_code
+        +str register_number
+        +bool is_special_needs
+    }
+
+    class InvigilationAssignment {
+        +str assignment_id
+        +str session_id
+        +InvigilationRole role
+        +str building_code
+        +str hall_id
+        +int slot_index
+        +StaffingStatus status
+        +str invigilator_id
+        +TimeInterval duty_window
+    }
+
+    class Violation {
+        +str violation_id
+        +ViolationCategory category
+        +str code
+        +str rule_id
+        +str session_id
+        +tuple~str~ entity_ids
+        +str message
+    }
+
+    class ChangeCommand {
+        +str command_id
+        +int sequence_no
+        +ChangeType change_type
+        +str course_code
+        +str hall_id
+        +tuple~str~ target_session_ids
+    }
+
+    class ChangeResult {
+        +str command_id
+        +ChangeType change_type
+        +ChangeStatus status
+        +tuple~str~ affected_sessions
+        +tuple~str~ conflicting_courses
+        +bool unaffected_sessions_verified
+    }
+
+    class ScheduleState {
+        +int state_version
+        +frozenset closed_hall_sessions
+        +dict exam_assignments
+        +dict hall_allocations
+        +dict seat_assignments
+        +dict invigilation_assignments
+        +tuple~Violation~ active_violations
+        +tuple~ChangeResult~ change_history
+    }
+
+    Student "1" --> "0..*" Enrolment : enrolled_via
+    Course "1" --> "0..*" Enrolment : has_enrolments
+    Building "1" *-- "1..*" Hall : contains
+    ExamWindow "1" *-- "1..*" ExamSession : generates
+    Course "1" --> "0..1" ExamAssignment : scheduled_in
+    ExamSession "1" --> "0..*" ExamAssignment : hosts_courses
+    ExamSession "1" --> "0..*" HallAllocation : occupies_halls
+    Hall "1" --> "0..*" HallAllocation : allocated_in
+    HallAllocation "1" *-- "1..*" SeatAssignment : seats
+    Student "1" --> "0..*" SeatAssignment : assigned_seat
+    ExamSession "1" --> "0..*" InvigilationAssignment : staffed_by
+    Invigilator "1" --> "0..*" InvigilationAssignment : performs_duty
+    ChangeCommand "1" --> "1" ChangeResult : produces
+    ScheduleState "1" *-- "0..*" ExamAssignment : tracks
+    ScheduleState "1" *-- "0..*" HallAllocation : tracks
+    ScheduleState "1" *-- "0..*" InvigilationAssignment : tracks
+    ScheduleState "1" *-- "0..*" Violation : records
+    ScheduleState "1" *-- "0..*" ChangeResult : audits
