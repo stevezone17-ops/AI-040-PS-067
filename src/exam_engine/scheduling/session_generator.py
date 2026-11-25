@@ -23,6 +23,16 @@ SLOT_TIME_BOUNDS: dict[str, tuple[int, int]] = {
     "FN": (FN_START_MINUTES, FN_END_MINUTES),
     "AN": (AN_START_MINUTES, AN_END_MINUTES),
 }
+SUPPLEMENTARY_ACTIVE_DATE_COUNT: int = 3
+
+
+class EmptyExamWindowError(ValueError):
+    """Raised when an ExamWindow yields zero active examination sessions (CN-06)."""
+
+    error_code: str = "ERR_EMPTY_EXAM_WINDOW"
+
+    def __init__(self, message: str = "ERR_EMPTY_EXAM_WINDOW: No active sessions remain.") -> None:
+        super().__init__(message)
 
 
 class ExamWindowProtocol(Protocol):
@@ -100,6 +110,15 @@ def generate_sessions(
             slot_obj = getattr(slots, slot_name)
             pairs.append((exam_date, slot_obj, slot_name))
 
+    if not pairs:
+        raise EmptyExamWindowError(
+            "ERR_EMPTY_EXAM_WINDOW: ExamWindow produced zero active sessions."
+        )
+
+    active_dates = list(dict.fromkeys(exam_date for exam_date, _, _ in pairs))
+    supp_start_idx = max(0, len(active_dates) - SUPPLEMENTARY_ACTIVE_DATE_COUNT)
+    supp_dates = frozenset(active_dates[supp_start_idx:])
+
     sessions: list[Any] = []
     for index, (exam_date, slot_obj, slot_name) in enumerate(pairs):
         start_min, end_min = SLOT_TIME_BOUNDS[slot_name]
@@ -111,7 +130,7 @@ def generate_sessions(
                 exam_date=exam_date,
                 slot=slot_obj,
                 base_window=make_interval(start_min, end_min),
-                is_supplementary_window_date=False,
+                is_supplementary_window_date=(exam_date in supp_dates),
                 iso_week_key=(iso_cal.year, iso_cal.week),
             )
         )
