@@ -49,6 +49,18 @@ def build_conflict_graph(registry: ProblemRegistryProtocol) -> ConflictGraph:
     same_sess: dict[str, set[str]] = {c: set() for c in sorted(registry.courses)}
     same_day: dict[str, set[str]] = {c: set() for c in sorted(registry.courses)}
 
+    for student_id in sorted(registry.enrolments_by_student):
+        enrols = registry.enrolments_by_student[student_id]
+        n = len(enrols)
+        for i in range(n):
+            u = enrols[i].course_code
+            for j in range(i + 1, n):
+                v = enrols[j].course_code
+                if u == v:
+                    continue
+                same_sess.setdefault(u, set()).add(v)
+                same_sess.setdefault(v, set()).add(u)
+
     return ConflictGraph(
         same_session_forbidden={c: frozenset(same_sess[c]) for c in sorted(same_sess)},
         same_day_forbidden={c: frozenset(same_day[c]) for c in sorted(same_day)},
