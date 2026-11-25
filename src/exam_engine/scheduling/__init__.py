@@ -13,6 +13,7 @@ University Exam Timetabling and Hall Allocation Engine (AI-040-PS-067):
 from __future__ import annotations
 
 from exam_engine.scheduling.conflict_graph import ConflictGraph, build_conflict_graph
+from exam_engine.scheduling.gap_validator import build_cohorts_map, check_core_gap
 from exam_engine.scheduling.session_generator import (
     EmptyExamWindowError,
     generate_sessions,
@@ -21,6 +22,8 @@ from exam_engine.scheduling.session_generator import (
 __all__: list[str] = [
     "ConflictGraph",
     "EmptyExamWindowError",
+    "build_cohorts_map",
     "build_conflict_graph",
+    "check_core_gap",
     "generate_sessions",
 ]
