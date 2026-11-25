@@ -12,9 +12,15 @@ University Exam Timetabling and Hall Allocation Engine (AI-040-PS-067):
 
 from __future__ import annotations
 
+from exam_engine.scheduling.conflict_graph import ConflictGraph, build_conflict_graph
 from exam_engine.scheduling.session_generator import (
     EmptyExamWindowError,
     generate_sessions,
 )
 
-__all__: list[str] = ["EmptyExamWindowError", "generate_sessions"]
+__all__: list[str] = [
+    "ConflictGraph",
+    "EmptyExamWindowError",
+    "build_conflict_graph",
+    "generate_sessions",
+]
