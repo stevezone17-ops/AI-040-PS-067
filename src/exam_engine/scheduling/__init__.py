@@ -12,4 +12,6 @@ University Exam Timetabling and Hall Allocation Engine (AI-040-PS-067):
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from exam_engine.scheduling.session_generator import generate_sessions
+
+__all__: list[str] = ["generate_sessions"]
