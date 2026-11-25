@@ -151,3 +151,113 @@ def test_duplicate_enrolment_does_not_create_self_conflict() -> None:
 
     assert graph.same_session_forbidden["C1"] == frozenset()
     assert graph.same_day_forbidden["C1"] == frozenset()
+
+
+def test_tc_010_backlog_enrolment_without_consent_blocks_same_day() -> None:
+    """TC-010: Backlog enrolment with backlog_consent=False retains same-day conflict."""
+    registry = _make_registry(
+        ["C1", "B1"],
+        [StubStudent("S1", backlog_consent=False)],
+        [StubEnrolment("S1", "C1", is_backlog=False), StubEnrolment("S1", "B1", is_backlog=True)],
+    )
+    graph = build_conflict_graph(registry)
+
+    assert graph.same_session_forbidden["C1"] == frozenset({"B1"})
+    assert graph.same_day_forbidden["C1"] == frozenset({"B1"})
+
+
+def test_tc_011_tc_013_valid_backlog_consent_allows_same_day_but_blocks_same_session() -> None:
+    """TC-011 & TC-013: backlog_consent=True + >=1 backlog removes same-day, keeps same-session."""
+    registry = _make_registry(
+        ["C1", "B1"],
+        [StubStudent("S1", backlog_consent=True)],
+        [StubEnrolment("S1", "C1", is_backlog=False), StubEnrolment("S1", "B1", is_backlog=True)],
+    )
+    graph = build_conflict_graph(registry)
+
+    assert graph.same_session_forbidden["C1"] == frozenset({"B1"})
+    assert graph.same_session_forbidden["B1"] == frozenset({"C1"})
+    assert graph.same_day_forbidden["C1"] == frozenset()
+    assert graph.same_day_forbidden["B1"] == frozenset()
+
+
+def test_tc_012_backlog_consent_does_not_allow_two_regular_courses_same_day() -> None:
+    """TC-012 / AS-013: backlog_consent=True still forbids same-day for two regular courses."""
+    registry = _make_registry(
+        ["C1", "C2", "B1"],
+        [StubStudent("S1", backlog_consent=True)],
+        [
+            StubEnrolment("S1", "C1", is_backlog=False),
+            StubEnrolment("S1", "C2", is_backlog=False),
+            StubEnrolment("S1", "B1", is_backlog=True),
+        ],
+    )
+    graph = build_conflict_graph(registry)
+
+    assert graph.same_day_forbidden["C1"] == frozenset({"C2"})
+    assert graph.same_day_forbidden["C2"] == frozenset({"C1"})
+    assert graph.same_day_forbidden["B1"] == frozenset()
+    assert graph.same_session_forbidden["C1"] == frozenset({"C2", "B1"})
+
+
+def test_mixed_student_eligibility_retains_same_day_conflict() -> None:
+    """Same-day conflict remains if ANY shared student does not qualify for the exception."""
+    registry = _make_registry(
+        ["C1", "B1"],
+        [StubStudent("S1", backlog_consent=True), StubStudent("S2", backlog_consent=False)],
+        [
+            StubEnrolment("S1", "C1", is_backlog=False),
+            StubEnrolment("S1", "B1", is_backlog=True),
+            StubEnrolment("S2", "C1", is_backlog=False),
+            StubEnrolment("S2", "B1", is_backlog=True),
+        ],
+    )
+    graph = build_conflict_graph(registry)
+
+    assert graph.same_day_forbidden["C1"] == frozenset({"B1"})
+    assert graph.same_session_forbidden["C1"] == frozenset({"B1"})
+
+
+def test_multiple_backlog_enrolments_with_consent() -> None:
+    """Two backlog enrolments with backlog_consent=True allow same-day, block same-session."""
+    registry = _make_registry(
+        ["B1", "B2"],
+        [StubStudent("S1", backlog_consent=True)],
+        [StubEnrolment("S1", "B1", is_backlog=True), StubEnrolment("S1", "B2", is_backlog=True)],
+    )
+    graph = build_conflict_graph(registry)
+
+    assert graph.same_session_forbidden["B1"] == frozenset({"B2"})
+    assert graph.same_day_forbidden["B1"] == frozenset()
+
+
+def test_deterministic_output_across_repeated_runs_and_reordered_inputs() -> None:
+    """Repeated runs and reordered course/student/enrolment inputs yield identical graphs."""
+    reg_a = _make_registry(
+        ["CS101", "CS102", "CS103"],
+        [StubStudent("S1"), StubStudent("S2", backlog_consent=True)],
+        [
+            StubEnrolment("S1", "CS101"),
+            StubEnrolment("S1", "CS102"),
+            StubEnrolment("S2", "CS102"),
+            StubEnrolment("S2", "CS103", is_backlog=True),
+        ],
+    )
+    reg_b = _make_registry(
+        ["CS103", "CS101", "CS102"],
+        [StubStudent("S2", backlog_consent=True), StubStudent("S1")],
+        [
+            StubEnrolment("S2", "CS103", is_backlog=True),
+            StubEnrolment("S2", "CS102"),
+            StubEnrolment("S1", "CS102"),
+            StubEnrolment("S1", "CS101"),
+        ],
+    )
+
+    graph_a1 = build_conflict_graph(reg_a)
+    graph_a2 = build_conflict_graph(reg_a)
+    graph_b = build_conflict_graph(reg_b)
+
+    assert graph_a1 == graph_a2 == graph_b
+    assert list(graph_a1.same_session_forbidden.keys()) == ["CS101", "CS102", "CS103"]
+    assert list(graph_b.same_session_forbidden.keys()) == ["CS101", "CS102", "CS103"]
