@@ -8,8 +8,9 @@ References: FR-02, BR-12, CN-06, EC-08, AS-015, AS-016.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from datetime import date, timedelta
-from typing import Any, Callable, Iterable, Protocol
+from typing import Any, Protocol
 
 # Isolated provisional policy constants (AS-015, AS-016)
 FN_START_MINUTES: int = 9 * 60 + 30   # 09:30 -> 570
@@ -66,6 +67,14 @@ def _iter_window_dates(start_date: date, end_date: date) -> list[date]:
     return [start_date + timedelta(days=offset) for offset in range(total_days)]
 
 
+def _normalize_closed_slots(closed_slots: Iterable[tuple[date, Any]]) -> frozenset[tuple[date, str]]:
+    """Normalize (date, slot) closures to canonical (date, slot_name) pairs."""
+    return frozenset(
+        (slot_date, str(getattr(slot_val, "value", slot_val)))
+        for slot_date, slot_val in closed_slots
+    )
+
+
 def generate_sessions(
     window: ExamWindowProtocol,
     *,
@@ -78,9 +87,16 @@ def generate_sessions(
         session_factory, time_interval_factory, slot_enum
     )
 
+    holidays = frozenset(window.holidays)
+    closed = _normalize_closed_slots(window.closed_slots)
+
     pairs: list[tuple[date, Any, str]] = []
     for exam_date in _iter_window_dates(window.start_date, window.end_date):
+        if exam_date in holidays:
+            continue
         for slot_name in SLOT_ORDER:
+            if (exam_date, slot_name) in closed:
+                continue
             slot_obj = getattr(slots, slot_name)
             pairs.append((exam_date, slot_obj, slot_name))
 
