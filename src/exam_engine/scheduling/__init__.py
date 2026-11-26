@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from exam_engine.scheduling.conflict_graph import ConflictGraph, build_conflict_graph
 from exam_engine.scheduling.gap_validator import build_cohorts_map, check_core_gap
+from exam_engine.scheduling.ordering import order_courses
 from exam_engine.scheduling.session_generator import (
     EmptyExamWindowError,
     generate_sessions,
@@ -26,4 +27,5 @@ __all__: list[str] = [
     "build_conflict_graph",
     "check_core_gap",
     "generate_sessions",
+    "order_courses",
 ]
