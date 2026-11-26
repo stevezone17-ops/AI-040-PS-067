@@ -19,6 +19,7 @@ from exam_engine.scheduling.session_generator import (
     EmptyExamWindowError,
     generate_sessions,
 )
+from exam_engine.scheduling.supplementary import is_supplementary_eligible
 
 __all__: list[str] = [
     "ConflictGraph",
@@ -27,5 +28,6 @@ __all__: list[str] = [
     "build_conflict_graph",
     "check_core_gap",
     "generate_sessions",
+    "is_supplementary_eligible",
     "order_courses",
 ]
