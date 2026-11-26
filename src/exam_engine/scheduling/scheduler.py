@@ -307,6 +307,7 @@ def generate_timetable(
     *,
     packability_checker: Callable[..., Any] | None = None,
     closed_halls: frozenset[tuple[str, str]] = frozenset(),
+    repair_small_courses: bool = False,
 ) -> TimetableResult:
     """Generate a deterministic timetable using the two-pass greedy heuristic (ALG-06).
 
@@ -322,6 +323,9 @@ def generate_timetable(
         Optional ALG-08 packability checker implementation or callable.
     closed_halls:
         Optional set of (session_id, hall_id) pairs closed under BR-10.
+    repair_small_courses:
+        Whether to automatically trigger ALG-10 small-course repair on deferred
+        courses (1 <= enrolment < 10) that failed Pass 1 and Pass 2.
 
     Returns
     -------
@@ -488,6 +492,25 @@ def generate_timetable(
                     message=f"Course {c_code} could not be scheduled in any feasible session.",
                 )
             )
+
+    # 7. Optional small-course repair phase (ALG-10)
+    if repair_small_courses and deferred_small:
+        from exam_engine.scheduling.small_course_repair import repair_deferred_courses
+
+        repair_result = repair_deferred_courses(
+            deferred_courses=deferred_small,
+            assignments=assignments,
+            session_courses=session_courses,
+            violations=violations,
+            registry=registry,
+            conflict_graph=conflict_graph,
+            cohorts_map=cohorts_map,
+            sessions=sessions,
+            sessions_by_date=sessions_by_date,
+            packability_checker=packability_checker,
+            closed_halls=closed_halls,
+        )
+        deferred_small = list(repair_result.unrepaired_courses)
 
     return TimetableResult(
         assignments=assignments,
